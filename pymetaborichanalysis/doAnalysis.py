@@ -37,7 +37,7 @@ class EnrichmentAnalysis:
             p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/p, alternative)
             results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, "; ".join(in_pathway)])
 
-        results =  pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Identifiers"])
+        results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Identifiers"])
 
         reject, cor_p_values, _, _ = multipletests(results["p-value"].values, method=adj_method)
 
@@ -49,23 +49,3 @@ class EnrichmentAnalysis:
         results.sort_values("adj. p-value", inplace=True)
 
         return results
-
-if __name__ == "__main__":
-
-    test_compounds = [
-                "C00033",
-                "C00031",
-                "C00103",
-                "C01451",
-                "C00036",
-                "C01159",
-                "C00068"
-            ]
-
-    ea = EnrichmentAnalysis(test_compounds)
-    ea = ea.run_analysis()
-
-
-    print(ea)
-
-    ea.to_csv("/home/keo7/Desktop/out.csv")
