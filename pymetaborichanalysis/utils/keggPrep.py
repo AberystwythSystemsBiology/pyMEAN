@@ -4,7 +4,7 @@
 
     If you do happen to want to use this, feel free to drop me an email
     at any time and I'll get back to you with instructions on how to use
-    it. 
+    it.
 '''
 
 import os
@@ -51,6 +51,7 @@ def parse(dir, output):
         for pathway in species_pathways:
             species_pathway_filepath = os.path.join(dir, pathway)
             name, compounds = parse_kgml(species_pathway_filepath)
+            pathway = pathway.split(".")[0]
             pathway_info[species][pathway] = {
                 "name": name,
                 "compounds": compounds
@@ -58,6 +59,16 @@ def parse(dir, output):
 
     timestamp = int(time.time())
 
+    # Taken on 16th April 2019 @ 20:26 GMT
+    number_compounds = 18505
+
+    output_dict = {
+        "version": timestamp,
+        "population": number_compounds,
+        "species" : pathway_info
+    }
+
+    print(output_dict)
 
 if __name__ == "__main__":
     parse()
