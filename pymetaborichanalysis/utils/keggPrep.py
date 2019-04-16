@@ -68,7 +68,13 @@ def parse(dir, output):
         "species" : pathway_info
     }
 
-    print(output_dict)
+    with open(os.path.join(output, "timestamp.json"), "w") as outfile:
+        json.dump({"version":timestamp}, outfile)
+        outfile.close()
+
+    with open(os.path.join(output, "pathways.json"), "w") as outfile:
+        json.dump(output_dict, outfile, indent=4)
+        outfile.close()
 
 if __name__ == "__main__":
     parse()
