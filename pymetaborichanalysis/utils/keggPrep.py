@@ -1,34 +1,40 @@
+'''
+    I don't expect you to run this file at all, it's purely used to create
+    the JSON files that are required to run this litte tool.
+
+    If you do happen to want to use this, feel free to drop me an email
+    at any time and I'll get back to you with instructions on how to use
+    it. 
+'''
+
 import os
 import click
 import json
+import time
 
 def parse_kgml(species_pathway_filepath):
     with open(species_pathway_filepath, "r") as infile:
         file = infile.readlines()
 
+    name = [x for x in file if x.startswith("NAME")][0].split("   ")[2].strip()
+
     if any("COMPOUND" in line for line in file):
         cpd_s = [i for i, x in enumerate(file) if x.startswith("COMPOUND")][0]
-
         try:
             cpd_e = [i for i, x in enumerate(file[cpd_s:]) if x.strip().startswith("C") != True][0]
         except IndexError():
             cpd_e = len(cpd_s - file)
 
+        compounds = [x.strip() for x in file[cpd_s:cpd_s+cpd_e]]
 
-
-        compounds = [x.strip() for x in file[cpd_s:cpd_e]]
-
-        if len(compounds) == 0:
-            print(compounds[cpd_s:])
-            print(cpd_s)
-            print(cpd_e)
-            print(species_pathway_filepath)
+        compounds_clean = []
 
         for compound in compounds:
             kegg_cid = compound.replace("COMPOUND", "").strip().split(" ")[0]
-            #print(kegg_cid)
+            compounds_clean.append(kegg_cid)
+        return name, compounds_clean
     else:
-        pass
+        return name, []
 
 @click.command()
 @click.option("--dir", help="File directory containing KGML files", required=True)
@@ -44,9 +50,13 @@ def parse(dir, output):
         species_pathways = [x for x in filenames if species in x]
         for pathway in species_pathways:
             species_pathway_filepath = os.path.join(dir, pathway)
-            parse_kgml(species_pathway_filepath)
+            name, compounds = parse_kgml(species_pathway_filepath)
+            pathway_info[species][pathway] = {
+                "name": name,
+                "compounds": compounds
+            }
 
-        break
+    timestamp = int(time.time())
 
 
 if __name__ == "__main__":
