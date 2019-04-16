@@ -1,4 +1,6 @@
 '''
+    # pyMEAN:: Metabolomic Enrichment ANalysis
+
     I don't expect you to run this file at all, it's purely used to create
     the JSON files that are required to run this litte tool.
 
