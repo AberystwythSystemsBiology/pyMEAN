@@ -35,17 +35,18 @@ class KEGGPathway:
     def _get_compounds(self):
         entries = self.details["entries"]
         compounds = [x["name"].split(":")[1] for x in entries if x["type"] == "compound"]
+        compounds = [x.split(" ")[0] for x in compounds]
         return compounds
 
     def to_dict(self):
         return {"name" : self.name, "compounds" : self.compounds, "genes" : self.genes}
 
 if __name__ == "__main__":
+
     k = KEGG()
 
-    pathway_dict = {}
-
-    for organism in k.organismIds:
+    for organism in tqdm(k.organismIds):
+        pathway_dict = {}
         k.organism = organism
         for pathway_id in tqdm(k.pathwayIds):
             pathway = KEGGPathway(pathway_id, k)
@@ -53,7 +54,7 @@ if __name__ == "__main__":
                 pathway_dict[organism] = {}
             pathway_dict[organism][pathway_id] = pathway.to_dict()
 
-        break
+        with open("/home/keo7/Desktop/kegg_%s_pathway.json" % (organism), "w") as outfile:
+            json.dump(pathway_dict, outfile, indent=4)
 
-    with open("/home/keo7/Desktop/kegg_pathway.json", "w") as outfile:
-        json.dump(pathway_dict, outfile, indent=4)
+
