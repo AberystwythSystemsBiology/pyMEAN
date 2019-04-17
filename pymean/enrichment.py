@@ -2,33 +2,24 @@ from statsmodels.stats.multitest import multipletests
 from scipy.stats import binom_test
 import json
 import pandas as pd
+import os
 
 class EnrichmentAnalysis:
-    def __init__(self, clusters, type="compounds", organism="hsa"):
-        self.clusters = clusters
+    def __init__(self, compound_list, type="compounds", database="kegg", organism="hsa"):
+        self.compound_list = compound_list
         self.type = type
         self.organism = organism
 
         self.pathway_data = self._load_data()
 
     def _load_data(self):
-        with open("/home/keo7/Desktop/kegg_pathway.json", "r") as infile:
-            data = json.load(infile)
+        # This needs to be refactored quite a lot.
+        
 
-        d = {}
 
-        if self.organism == "all":
-            # TODO: Flatten the dictionary
-            pass
-        else:
-            for pathway_id in data[self.organism]:
-                pathway_info = data[self.organism][pathway_id]
-                pathway_name = pathway_info["name"]
-                loi = pathway_info[self.type]
-                d[pathway_id] = {"name" : pathway_name, self.type : loi}
-            return d
 
-    def run_analysis(self, pvalue_cutoff=0.05, p=18505.0, alternative="two-sided", adj_method="bonferroni"):
+
+    def run_analysis(self, pvalue_cutoff=0.05, p=0, alternative="two-sided", adj_method="bonferroni"):
         results = []
         for pathway in self.pathway_data:
             pathway_compounds = self.pathway_data[pathway][self.type]
