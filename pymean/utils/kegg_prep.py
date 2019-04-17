@@ -48,35 +48,36 @@ def parse(dir, output):
 
     pathway_info = {x : {} for x in species}
 
-    for species in species:
-        species_pathways = [x for x in filenames if species in x]
-        for pathway in species_pathways:
-            species_pathway_filepath = os.path.join(dir, pathway)
-            name, compounds = parse_kgml(species_pathway_filepath)
-            pathway = pathway.split(".")[0]
-            pathway_info[species][pathway] = {
-                "name": name,
-                "compounds": compounds
-            }
-
+    # TODO: Individual file for each species.
     timestamp = int(time.time())
 
     # Taken on 16th April 2019 @ 20:26 GMT
     number_compounds = 18505
 
-    output_dict = {
-        "version": timestamp,
-        "population": number_compounds,
-        "species" : pathway_info
-    }
+    for species in species:
+        species_pathways = [x for x in filenames if species in x]
+        species_pathways_dict = {
+            "pathways" : {},
+            "version" : timestamp,
+            "population" : number_compounds
+        }
 
-    with open(os.path.join(output, "timestamp.json"), "w") as outfile:
-        json.dump({"version":timestamp}, outfile)
-        outfile.close()
+        for pathway in species_pathways:
+            species_pathway_filepath = os.path.join(dir, pathway)
+            name, compounds = parse_kgml(species_pathway_filepath)
+            pathway = pathway.split(".")[0]
+            species_pathways_dict["pathways"][pathway] = {
+                "name": name,
+                "compounds": compounds,
+            }
 
-    with open(os.path.join(output, "pathways.json"), "w") as outfile:
-        json.dump(output_dict, outfile, indent=4)
-        outfile.close()
+        with open(os.path.join(output, "kegg_%s_timestamp.json" % species), "w") as outfile:
+            json.dump({"version":timestamp}, outfile)
+            outfile.close()
+
+        with open(os.path.join(output, "kegg_%s_pathways.json" % species), "w") as outfile:
+            json.dump(species_pathways_dict, outfile, indent=4)
+            outfile.close()
 
 if __name__ == "__main__":
     parse()
