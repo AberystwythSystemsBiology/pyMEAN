@@ -3,6 +3,7 @@ from scipy.stats import binom_test
 import json
 import pandas as pd
 import os
+from .utils.get_data import get_data
 
 class EnrichmentAnalysis:
     def __init__(self, compound_list, type="compounds", database="kegg", organism="hsa"):
@@ -13,11 +14,7 @@ class EnrichmentAnalysis:
         self.pathway_data = self._load_data()
 
     def _load_data(self):
-        # This needs to be refactored quite a lot.
-        
-
-
-
+        return get_data(self.database, self.organism)
 
     def run_analysis(self, pvalue_cutoff=0.05, p=0, alternative="two-sided", adj_method="bonferroni"):
         results = []
