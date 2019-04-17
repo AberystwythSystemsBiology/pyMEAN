@@ -49,6 +49,6 @@ if __name__ == "__main__":
         "C00049",
         "C00631",
         "C00152"
-    ])
+    ], organism="hsa")
 
     print(ea.run_analysis(pvalue_cutoff=0.05))

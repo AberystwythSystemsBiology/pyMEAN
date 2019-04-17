@@ -56,5 +56,4 @@ def get_data(database="kegg", species="hsa"):
             _download(dotfile_dir, pathways_file, timestamp_file)
     else:
         _download(dotfile_dir, pathways_file, timestamp_file)
-
     return _load_data(dotfile_dir, pathways_file)
