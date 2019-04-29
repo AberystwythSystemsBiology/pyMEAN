@@ -12,31 +12,55 @@
 import os
 import click
 import json
+import requests
 import time
+import xmltodict
+import bioservices
+from bioservices import KEGG, ChEBI
+
+k = KEGG(verbose=False)
+map_kegg_chebi = k.conv("chebi", "compound")
+c = ChEBI(verbose = False)
+
+def chebi(compound_id):
+    print(compound_id)
+    chebi = map_kegg_chebi[compound_id]
+
+    print(chebi)
+    print(type(chebi))
+
+
+def bridgedb(compound_id):
+    compound_id = compound_id.split(":")[1]
+    url = "https://webservice.bridgedb.org/Human/xrefs/Ck/%s" % (compound_id)
+    identifiers = requests.get(url)
+    identifiers = identifiers.text.split("\n")
+    inchikeys = []
+    for identifier in identifiers:
+        if identifier != "":
+            id, database = identifier.split("\t")
+            if database == "InChIKey":
+                inchikeys.append(id)
+    return inchikeys
 
 def parse_kgml(species_pathway_filepath):
     with open(species_pathway_filepath, "r") as infile:
-        file = infile.readlines()
+        file = infile.read()
 
-    name = [x for x in file if x.startswith("NAME")][0].split("   ")[2].strip()
 
-    if any("COMPOUND" in line for line in file):
-        cpd_s = [i for i, x in enumerate(file) if x.startswith("COMPOUND")][0]
-        try:
-            cpd_e = [i for i, x in enumerate(file[cpd_s:]) if x.strip().startswith("C") != True][0]
-        except IndexError():
-            cpd_e = len(cpd_s - file)
+    kegg_pathway = xmltodict.parse("".join(file))["pathway"]
 
-        compounds = [x.strip() for x in file[cpd_s:cpd_s+cpd_e]]
+    pathway_name = kegg_pathway["@title"]
 
-        compounds_clean = []
+    compounds = [e["@name"] for e in kegg_pathway["entry"] if e["@type"] == "compound"]
 
-        for compound in compounds:
-            kegg_cid = compound.replace("COMPOUND", "").strip().split(" ")[0]
-            compounds_clean.append(kegg_cid)
-        return name, compounds_clean
-    else:
-        return name, []
+    for index, compound in enumerate(compounds):
+        inchikeys = bridgedb(compound)
+        if len(inchikeys) == 0:
+            chebi(compound)
+            exit(0)
+
+    exit(0)
 
 @click.command()
 @click.option("--dir", help="File directory containing KGML files", required=True)
@@ -70,6 +94,8 @@ def parse(dir, output):
                 "name": name,
                 "compounds": compounds,
             }
+
+
 
         with open(os.path.join(output, "kegg_%s_timestamp.json" % species), "w") as outfile:
             json.dump({"version":timestamp}, outfile)
