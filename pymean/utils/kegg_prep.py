@@ -30,6 +30,10 @@ chemspider_client = Client("https://www.chemspider.com/InChI.asmx?WSDL")
 not_founds = []
 
 
+# Need to create a global dictonary for these annotations, as I don't
+# want to take the piss with the web services these wonderful people
+# provide to us free of charge.
+
 def kegg_mol_to_inchi(compound_id):
     compound_id = compound_id.split(":")[1]
     kegg_mol_url = "https://www.genome.jp/dbget-bin/www_bget?-f+m+compound+%s" % (compound_id)
