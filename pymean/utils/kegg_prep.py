@@ -17,17 +17,42 @@ import time
 import xmltodict
 import bioservices
 from bioservices import KEGG, ChEBI
+from zeep import Client
+
 
 k = KEGG(verbose=False)
 map_kegg_chebi = k.conv("chebi", "compound")
 c = ChEBI(verbose = False)
 
-def chebi(compound_id):
-    print(compound_id)
-    chebi = map_kegg_chebi[compound_id]
+chebi_client = Client("https://www.ebi.ac.uk/webservices/chebi/2.0/webservice?wsdl")
 
-    print(chebi)
-    print(type(chebi))
+
+
+def chebi(compound_id):
+    def _get_chebi(chebi_id):
+        result = chebi_client.service.getCompleteEntity(chebi_id.upper())
+        return result
+
+    def _recurisve_get_parent(chebi_id):
+        result = _get_chebi(chebi_id)
+        if result["inchiKey"] == None:
+            for child in result["OntologyParents"]:
+                _recurisve_get_parent(child["chebiId"])
+        else:
+            return result["inchiKey"]
+
+    chebi_id = map_kegg_chebi[compound_id]
+    result = _get_chebi(chebi_id)
+
+    if result["inchiKey"] == None:
+        inchikeys = []
+        for child in result["OntologyChildren"]:
+            child_chebi_id = child["chebiId"]
+            inchikeys.append(_recurisve_get_parent(child_chebi_id))
+        return inchikeys
+    else:
+        return [result["inchiKey"]]
+
 
 
 def bridgedb(compound_id):
@@ -54,13 +79,19 @@ def parse_kgml(species_pathway_filepath):
 
     compounds = [e["@name"] for e in kegg_pathway["entry"] if e["@type"] == "compound"]
 
+    # Sometimes, CPDs are combined.
+    compounds = [x.split(" ") for x in compounds]
+    compounds = [item for sublist in compounds for item in sublist]
+
     for index, compound in enumerate(compounds):
         inchikeys = bridgedb(compound)
         if len(inchikeys) == 0:
-            chebi(compound)
-            exit(0)
+            inchikeys = chebi(compound)
+            if len(inchikeys) == 0:
+                print("Cannae find %s" % compound)
 
-    exit(0)
+    return "NotASwearWord", "Off"
+
 
 @click.command()
 @click.option("--dir", help="File directory containing KGML files", required=True)
@@ -94,8 +125,6 @@ def parse(dir, output):
                 "name": name,
                 "compounds": compounds,
             }
-
-
 
         with open(os.path.join(output, "kegg_%s_timestamp.json" % species), "w") as outfile:
             json.dump({"version":timestamp}, outfile)
