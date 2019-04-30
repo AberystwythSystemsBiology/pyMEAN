@@ -19,40 +19,49 @@ import bioservices
 from bioservices import KEGG, ChEBI
 from zeep import Client
 
-
 k = KEGG(verbose=False)
 map_kegg_chebi = k.conv("chebi", "compound")
 c = ChEBI(verbose = False)
 
 chebi_client = Client("https://www.ebi.ac.uk/webservices/chebi/2.0/webservice?wsdl")
+chemspider_client = Client("https://www.chemspider.com/InChI.asmx?WSDL")
+
+# For compounds that cant be found at all.
+not_founds = []
+
+
+def kegg_mol_to_inchi(compound_id):
+    compound_id = compound_id.split(":")[1]
+    kegg_mol_url = "https://www.genome.jp/dbget-bin/www_bget?-f+m+compound+%s" % (compound_id)
+
+    mol = requests.get(kegg_mol_url).text
+    inchi = chemspider_client.service.MolToInChI(mol)
+    inchikey = chemspider_client.service.InChIToInChIKey(inchi)
+    return [inchikey]
 
 
 
 def chebi(compound_id):
-    def _get_chebi(chebi_id):
-        result = chebi_client.service.getCompleteEntity(chebi_id.upper())
-        return result
 
-    def _recurisve_get_parent(chebi_id):
-        result = _get_chebi(chebi_id)
-        if result["inchiKey"] == None:
-            for child in result["OntologyParents"]:
-                _recurisve_get_parent(child["chebiId"])
+    def _recursive_find(chebi_id, results):
+        chebi_result = chebi_client.service.getCompleteEntity(chebi_id.upper())
+        if chebi_result["inchiKey"] == None:
+            for child in chebi_result["OntologyChildren"]:
+                if child["type"] == "is a" or child["type"] == "is conjugate base of":
+                    results = _recursive_find(child["chebiId"], results)
         else:
-            return result["inchiKey"]
+            results.append(chebi_result["inchiKey"])
+        return results
 
-    chebi_id = map_kegg_chebi[compound_id]
-    result = _get_chebi(chebi_id)
 
-    if result["inchiKey"] == None:
-        inchikeys = []
-        for child in result["OntologyChildren"]:
-            child_chebi_id = child["chebiId"]
-            inchikeys.append(_recurisve_get_parent(child_chebi_id))
-        return inchikeys
-    else:
-        return [result["inchiKey"]]
+    try:
+        chebi_id = map_kegg_chebi[compound_id]
+    except KeyError:
+        return []
 
+    results = _recursive_find(chebi_id, [])
+
+    return [x for x in results]
 
 
 def bridgedb(compound_id):
@@ -66,6 +75,7 @@ def bridgedb(compound_id):
             id, database = identifier.split("\t")
             if database == "InChIKey":
                 inchikeys.append(id)
+
     return inchikeys
 
 def parse_kgml(species_pathway_filepath):
@@ -79,22 +89,33 @@ def parse_kgml(species_pathway_filepath):
 
     compounds = [e["@name"] for e in kegg_pathway["entry"] if e["@type"] == "compound"]
 
-    # Sometimes, CPDs are combined.
+    # Sometimes CPDs are combined due to a parsing issue.
     compounds = [x.split(" ") for x in compounds]
     compounds = [item for sublist in compounds for item in sublist]
+
+    compounds_to_inchikeys = []
 
     for index, compound in enumerate(compounds):
         inchikeys = bridgedb(compound)
         if len(inchikeys) == 0:
             inchikeys = chebi(compound)
             if len(inchikeys) == 0:
-                print("Cannae find %s" % compound)
+                # If not found, then generate InChI from KEGG mol file.
+                # very much a last resort, but there you go.
+                inchikeys = kegg_mol_to_inchi(compound)
+                if len(inchikeys) == 0:
+                    not_founds.append(compound)
 
-    return "NotASwearWord", "Off"
+
+
+        compounds_to_inchikeys.append({compound : list(set(inchikeys))})
+
+
+    return pathway_name, compounds_to_inchikeys
 
 
 @click.command()
-@click.option("--dir", help="File directory containing KGML files", required=True)
+@click.option("--dir", help="File directory containing KEGG XML files", required=True)
 @click.option("--output", help="Output Directory", required=True)
 def parse(dir, output):
 
@@ -125,6 +146,8 @@ def parse(dir, output):
                 "name": name,
                 "compounds": compounds,
             }
+            print(json.dumps(species_pathways_dict["pathways"][pathway], indent=4))
+            exit(0)
 
         with open(os.path.join(output, "kegg_%s_timestamp.json" % species), "w") as outfile:
             json.dump({"version":timestamp}, outfile)
