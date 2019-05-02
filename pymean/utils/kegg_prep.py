@@ -18,6 +18,7 @@ import xmltodict
 import bioservices
 from bioservices import KEGG, ChEBI
 from zeep import Client
+from tqdm import tqdm
 
 k = KEGG(verbose=False)
 map_kegg_chebi = k.conv("chebi", "compound")
@@ -33,15 +34,22 @@ not_founds = []
 # Need to create a global dictonary for these annotations, as I don't
 # want to take the piss with the web services these wonderful people
 # provide to us free of charge.
+converted_compounds = {}
+
+
+
 
 def kegg_mol_to_inchi(compound_id):
     compound_id = compound_id.split(":")[1]
     kegg_mol_url = "https://www.genome.jp/dbget-bin/www_bget?-f+m+compound+%s" % (compound_id)
 
     mol = requests.get(kegg_mol_url).text
-    inchi = chemspider_client.service.MolToInChI(mol)
-    inchikey = chemspider_client.service.InChIToInChIKey(inchi)
-    return [inchikey]
+    try:
+        inchi = chemspider_client.service.MolToInChI(mol)
+        inchikey = chemspider_client.service.InChIToInChIKey(inchi)
+        return [inchikey]
+    except Exception:
+        return []
 
 
 
@@ -97,22 +105,24 @@ def parse_kgml(species_pathway_filepath):
     compounds = [x.split(" ") for x in compounds]
     compounds = [item for sublist in compounds for item in sublist]
 
-    compounds_to_inchikeys = []
+    compounds_to_inchikeys = {}
 
-    for index, compound in enumerate(compounds):
-        inchikeys = bridgedb(compound)
-        if len(inchikeys) == 0:
+
+
+    for compound in compounds:
+        if compound not in converted_compounds:
             inchikeys = chebi(compound)
             if len(inchikeys) == 0:
-                # If not found, then generate InChI from KEGG mol file.
-                # very much a last resort, but there you go.
-                inchikeys = kegg_mol_to_inchi(compound)
+                inchikeys = bridgedb(compound)
                 if len(inchikeys) == 0:
-                    not_founds.append(compound)
+                    inchikeys = kegg_mol_to_inchi(compound)
+                    if len(inchikeys) == 0:
+                        not_founds.append(compound)
+            converted_compounds[compound] = inchikeys
+        else:
+            inchikeys = converted_compounds[compound]
 
-
-
-        compounds_to_inchikeys.append({compound : list(set(inchikeys))})
+        compounds_to_inchikeys[compound] = list(set(inchikeys))
 
 
     return pathway_name, compounds_to_inchikeys
@@ -134,6 +144,7 @@ def parse(dir, output):
     # Taken on 16th April 2019 @ 20:26 GMT
     number_compounds = 18505
 
+
     for species in species:
         species_pathways = [x for x in filenames if species in x]
         species_pathways_dict = {
@@ -142,7 +153,9 @@ def parse(dir, output):
             "population" : number_compounds
         }
 
-        for pathway in species_pathways:
+        count = 0
+
+        for pathway in tqdm(species_pathways):
             species_pathway_filepath = os.path.join(dir, pathway)
             name, compounds = parse_kgml(species_pathway_filepath)
             pathway = pathway.split(".")[0]
@@ -150,8 +163,6 @@ def parse(dir, output):
                 "name": name,
                 "compounds": compounds,
             }
-            print(json.dumps(species_pathways_dict["pathways"][pathway], indent=4))
-            exit(0)
 
         with open(os.path.join(output, "kegg_%s_timestamp.json" % species), "w") as outfile:
             json.dump({"version":timestamp}, outfile)
@@ -160,6 +171,10 @@ def parse(dir, output):
         with open(os.path.join(output, "kegg_%s_pathways.json" % species), "w") as outfile:
             json.dump(species_pathways_dict, outfile, indent=4)
             outfile.close()
+
+    with open(os.path.join(output, "converted_compounds.json"), "w") as outfile:
+        json.dump(converted_compounds, outfile, indent=4)
+        outfile.close()
 
 if __name__ == "__main__":
     parse()
