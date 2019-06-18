@@ -1,6 +1,6 @@
 # pyMEAN: Metabolomic Enrichment ANalysis
 
-The pyMEAN package is designed to facilitate semi-automated enrichment analysis for Metabolites. The process consists of input of metabolites, and a output of the results.
+The pyMEAN package is designed to facilitate semi-automated enrichment analysis for metabolomic experiments.
 
 ## Installation
 
