@@ -7,24 +7,34 @@ from utils.get_data import get_data
 from itertools import chain
 
 class EnrichmentAnalysis:
-    def __init__(self, compound_list, database="kegg", organism="hsa"):
+    def __init__(self, compound_list, database: str ="kegg", organism: str="hsa"):
         self.compound_list = compound_list
         self.database = database
         self.organism = organism
         self.pathway_data = self._load_data()
 
-    def _load_data(self):
+    def _load_data(self) -> dict:
         return get_data(self.database, self.organism)
 
-    def run_analysis(self, pvalue_cutoff=0.05, alternative="two-sided", adj_method="bonferroni"):
+    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str ="two-sided", adj_method: str ="bonferroni"):
+
         results = []
-        p = self.pathway_data["population"]
+
+        population = self.pathway_data["population"]
+
+
         for pathway in self.pathway_data["pathways"]:
-            pathway_compounds = self.pathway_data["pathways"][pathway]["compounds"]
-            pathway_compounds = [pathway_compounds[x] for x in pathway_compounds]
-            pathway_name = self.pathway_data["pathways"][pathway]["name"]
+
+            pathway_info = self.pathway_data["pathways"][pathway]
+
+            pathway_name = pathway_info["name"]
+
+            pathway_compounds = list(pathway_info["compounds"].values())
+
             in_pathway = [x for x in self.compound_list if x in chain(*pathway_compounds)]
-            p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/p, alternative)
+
+            p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
+
             results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, "; ".join(in_pathway)])
 
         results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Identifiers"])

@@ -39,8 +39,6 @@ global CONVERTED_COMPOUNDS
 CONVERTED_COMPOUNDS = {}
 
 
-
-
 def kegg_mol_to_inchi(compound_id):
     compound_id = compound_id.split(":")[1]
     kegg_mol_url = "https://www.genome.jp/dbget-bin/www_bget?-f+m+compound+%s" % (compound_id)
@@ -134,7 +132,6 @@ def parse_kgml(species_pathway_filepath, converted_compounds):
 @click.option("--dir", help="File directory containing KEGG XML files", required=True)
 @click.option("--output", help="Output Directory", required=True)
 def parse(dir, output):
-
 
 
     if os.path.isfile(os.path.join(output, "converted_compounds.json")):
