@@ -6,11 +6,13 @@ DATA_URL = "http://users.aber.ac.uk/keo7/pymean/"
 PATHWAYS_FILE = "%s_%s_pathways.json"
 TIMESTAMP_FILE = "%s_%s_timestamp.json"
 
+
 def _load_data(dotfile_dir: str, pathways_file: str) -> dict:
     with open(os.path.join(dotfile_dir, pathways_file), "r") as infile:
         return json.load(infile)
 
-def _check_if_old(dotfile_dir: str , timestamp_file: str):
+
+def _check_if_old(dotfile_dir: str , timestamp_file: str) -> bool:
     timestamp = json.loads(request.urlopen(DATA_URL + timestamp_file).read())
 
     with open(os.path.join(dotfile_dir, timestamp_file), "r") as infile:
@@ -61,4 +63,5 @@ def get_data(database: str="kegg", species: str="hsa") -> dict:
             _download(dotfile_dir, pathways_file, timestamp_file)
     else:
         _download(dotfile_dir, pathways_file, timestamp_file)
+
     return _load_data(dotfile_dir, pathways_file)
