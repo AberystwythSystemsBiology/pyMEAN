@@ -6,11 +6,11 @@ DATA_URL = "http://users.aber.ac.uk/keo7/pymean/"
 PATHWAYS_FILE = "%s_%s_pathways.json"
 TIMESTAMP_FILE = "%s_%s_timestamp.json"
 
-def _load_data(dotfile_dir, pathways_file):
+def _load_data(dotfile_dir: str, pathways_file: str) -> dict:
     with open(os.path.join(dotfile_dir, pathways_file), "r") as infile:
         return json.load(infile)
 
-def _check_if_old(dotfile_dir, timestamp_file):
+def _check_if_old(dotfile_dir: str , timestamp_file: str):
     timestamp = json.loads(request.urlopen(DATA_URL + timestamp_file).read())
 
     with open(os.path.join(dotfile_dir, timestamp_file), "r") as infile:
@@ -22,15 +22,15 @@ def _check_if_old(dotfile_dir, timestamp_file):
         return False
 
 
-def _check_dotdir(dotfile_dir):
+def _check_dotdir(dotfile_dir: str) -> bool:
     if not os.path.isdir(dotfile_dir):
         os.makedirs(dotfile_dir)
 
-def _check_if_exists(fp):
+def _check_if_exists(fp: str) -> bool:
     return os.path.isfile(fp)
 
 
-def _download(dotfile_dir, pathways_file, timestamp_file):
+def _download(dotfile_dir: str, pathways_file: str, timestamp_file: str):
     r = request.urlopen(DATA_URL + pathways_file).read()
     r = json.loads(r)
     with open(os.path.join(dotfile_dir, pathways_file), "w") as outfile:
@@ -43,14 +43,19 @@ def _download(dotfile_dir, pathways_file, timestamp_file):
         json.dump(r, outfile, indent=4)
 
 
-def get_data(database="kegg", species="hsa"):
+def get_data(database: str="kegg", species: str="hsa") -> dict:
+
     home_dir = os.path.expanduser("~")
     dotfile_dir = os.path.join(home_dir, ".pymean/")
+
     _check_dotdir(dotfile_dir)
+
     pathways_file = PATHWAYS_FILE % (database, species)
     timestamp_file = TIMESTAMP_FILE % (database, species)
+
     fp = os.path.join(dotfile_dir, pathways_file)
     exists = _check_if_exists(fp)
+
     if _check_if_exists(fp):
         if _check_if_old(dotfile_dir, timestamp_file):
             _download(dotfile_dir, pathways_file, timestamp_file)

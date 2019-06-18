@@ -1,6 +1,5 @@
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import binom_test
-import json
 import pandas as pd
 import os
 from utils.get_data import get_data
@@ -16,7 +15,7 @@ class EnrichmentAnalysis:
     def _load_data(self) -> dict:
         return get_data(self.database, self.organism)
 
-    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str ="two-sided", adj_method: str ="bonferroni"):
+    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni") -> pd.DataFrame:
 
         results = []
 
