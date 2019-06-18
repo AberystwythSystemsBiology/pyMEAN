@@ -34,7 +34,9 @@ not_founds = []
 # Need to create a global dictonary for these annotations, as I don't
 # want to take the piss with the web services these wonderful people
 # provide to us free of charge.
-converted_compounds = {}
+
+global CONVERTED_COMPOUNDS
+CONVERTED_COMPOUNDS = {}
 
 
 
@@ -90,7 +92,7 @@ def bridgedb(compound_id):
 
     return inchikeys
 
-def parse_kgml(species_pathway_filepath):
+def parse_kgml(species_pathway_filepath, converted_compounds):
     with open(species_pathway_filepath, "r") as infile:
         file = infile.read()
 
@@ -125,13 +127,23 @@ def parse_kgml(species_pathway_filepath):
         compounds_to_inchikeys[compound] = list(set(inchikeys))
 
 
-    return pathway_name, compounds_to_inchikeys
+    return pathway_name, compounds_to_inchikeys, converted_compounds
 
 
 @click.command()
 @click.option("--dir", help="File directory containing KEGG XML files", required=True)
 @click.option("--output", help="Output Directory", required=True)
 def parse(dir, output):
+
+
+
+    if os.path.isfile(os.path.join(output, "converted_compounds.json")):
+        with open(os.path.join(output, "converted_compounds.json"), "r") as infile:
+            converted_compounds = json.load(infile)
+
+    else:
+        converted_compounds = {}
+
 
     filenames = os.listdir(dir)
     species = list(set([x.split(":")[1][0:3] for x in filenames]))
@@ -157,7 +169,7 @@ def parse(dir, output):
 
         for pathway in tqdm(species_pathways):
             species_pathway_filepath = os.path.join(dir, pathway)
-            name, compounds = parse_kgml(species_pathway_filepath)
+            name, compounds, converted_compounds = parse_kgml(species_pathway_filepath, converted_compounds)
             pathway = pathway.split(".")[0]
             species_pathways_dict["pathways"][pathway] = {
                 "name": name,
