@@ -30,8 +30,12 @@ class EnrichmentAnalysis:
     def _generate_in_pathway_string(self, in_pathway: dict) -> str:
         return "\t".join([" -> ".join([x, ";".join(in_pathway[x])]) for x in in_pathway])
 
+    def _calculate_importance(self, in_pathway: dict, pathway_compounds: dict) -> float:
 
-    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni") -> pd.DataFrame:
+        return len(in_pathway) / len(pathway_compounds)
+
+
+    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni", limiter: int= 0) -> pd.DataFrame:
 
         results = []
 
@@ -46,44 +50,32 @@ class EnrichmentAnalysis:
 
             pathway_compounds = list(pathway_info["compounds"].values())
 
-            in_pathway = self._check_if_in_pathway(pathway_info["compounds"])
 
-            p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
+            if len(pathway_compounds) >= limiter:
+                in_pathway = self._check_if_in_pathway(pathway_info["compounds"])
 
-            in_pathway_str = self._generate_in_pathway_string(in_pathway)
+                if len(in_pathway) != 0:
 
-            results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, in_pathway_str])
+                    p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
 
-        results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Identifiers"])
+                    in_pathway_str = self._generate_in_pathway_string(in_pathway)
+
+                    importance = self._calculate_importance(in_pathway, pathway_compounds)
+
+                    results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, importance, in_pathway_str])
+
+        results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Importance","Identifiers"])
 
         reject, cor_p_values, _, _ = multipletests(results["p-value"].values, method=adj_method)
 
-        results.insert(4, "adj. p-value", cor_p_values)
+        adj_method_str = "%s adj. p-value" % (adj_method)
+
+        results.insert(4, adj_method_str, cor_p_values)
         results.set_index("Pathway ID", inplace=True)
 
-        results = results[results["adj. p-value"] < pvalue_cutoff]
+        results = results[results[adj_method_str] < pvalue_cutoff]
 
-        results.sort_values("adj. p-value", inplace=True)
+        results.sort_values(adj_method_str, inplace=True)
 
         return results
-
-if __name__ == "__main__":
-
-    compound_list = [
-        'YFPCPZJYSKOLNK-NSCWJZNLSA-N',
-        'ACTIUHUUMQJHFO-UPTCCGCDSA-N',
-        'UUGXJSBPSRROMU-WJNLUYJISA-N',
-        'SOECUQMRSRVZQQ-UHFFFAOYSA-N',
-        'UIXPTCZPFCVOQF-UHFFFAOYSA-N',
-        'NYFAQDMDAFCWPU-UVCHAVPFSA-N',
-        'GXNFPEOUKFOTKY-LPHQIWJTSA-N',
-        'DBESHHFMIFSNRV-RJYQSXAYSA-N',
-        'SQQWBSBBCSFQGC-JLHYYAGUSA-N',
-        'ICFIZJQGJAJRSU-SGHXUWJISA-N'
-    ]
-
-    ea = EnrichmentAnalysis(compound_list, organism="hsa")
-
-    results = ea.run_analysis(pvalue_cutoff=0.05)
-
 
