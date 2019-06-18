@@ -14,7 +14,6 @@ pip install pymean
 
 Alternatively, you can use git and pip in unison to get the development branch:
 
-
 ```
 pip install https://github.com/KeironO/pyMEAN
 ```
