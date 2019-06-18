@@ -69,7 +69,7 @@ plot_enrichment_analysis_results(results, "fdr_bh")
 
 ```
 
-Which will return:
+Which will return the following chart:
 
 
 ![Plot of results](https://github.com/KeironO/pyMEAN/raw/master/example.png)
