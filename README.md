@@ -71,7 +71,7 @@ plot_enrichment_analysis_results(results, "fdr_bh")
 
 Which will return the following chart:
 
-![Plot of results](https://github.com/AberystwythSystemsBiology/KeironO/pyMEAN/raw/master/example.png)
+![Plot of results](https://github.com/AberystwythSystemsBiology/pyMEAN/raw/master/example.png)
 
 ## License
 
