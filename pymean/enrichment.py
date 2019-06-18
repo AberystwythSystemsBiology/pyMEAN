@@ -2,7 +2,7 @@ from statsmodels.stats.multitest import multipletests
 from scipy.stats import binom_test
 import pandas as pd
 import os
-from utils.get_data import get_data
+from . import get_data
 from itertools import chain
 
 class EnrichmentAnalysis:
