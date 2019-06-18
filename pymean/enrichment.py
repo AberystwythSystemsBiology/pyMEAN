@@ -27,6 +27,12 @@ class EnrichmentAnalysis:
         return {k: v for k,v in queried_dict.items() if v != []}
 
 
+    def _generate_in_pathway_string(self, in_pathway: dict) -> str:
+        return "\t".join([" -> ".join([x, ";".join(in_pathway[x])]) for x in in_pathway])
+
+
+
+
 
     def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni") -> pd.DataFrame:
 
@@ -47,7 +53,11 @@ class EnrichmentAnalysis:
 
             p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
 
-            results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, "; ".join(in_pathway)])
+            in_pathway_str = self._generate_in_pathway_string(in_pathway)
+
+
+
+            results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, in_pathway_str])
 
         results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Identifiers"])
 
@@ -81,5 +91,4 @@ if __name__ == "__main__":
 
     results = ea.run_analysis(pvalue_cutoff=0.05)
 
-    print(results)
 
