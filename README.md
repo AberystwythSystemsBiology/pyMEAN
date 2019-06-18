@@ -22,7 +22,7 @@ pip install https://github.com/KeironO/pyMEAN
 
 Here's a starting template to get you started:
 
-```
+```python
 # Import pyMEAN module into Python.
 from pymean import EnrichmentAnalysis
 
@@ -72,7 +72,7 @@ plot_enrichment_analysis_results(results, "fdr_bh")
 Which will return:
 
 
-
+![Plot of results](https://github.com/KeironO/pyMEAN/raw/master/example.png)
 
 ## License
 
