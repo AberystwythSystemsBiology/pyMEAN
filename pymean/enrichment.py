@@ -15,6 +15,19 @@ class EnrichmentAnalysis:
     def _load_data(self) -> dict:
         return get_data(self.database, self.organism)
 
+
+    def _check_if_in_pathway(self, pathway_compounds: dict) -> dict:
+        queried_dict = { k : [] for k in pathway_compounds.keys()}
+
+        for inchi in self.compound_list:
+            for compound, inchis in pathway_compounds.items():
+                if inchi in inchis:
+                    queried_dict[compound].append(inchi)
+
+        return {k: v for k,v in queried_dict.items() if v != []}
+
+
+
     def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni") -> pd.DataFrame:
 
         results = []
@@ -30,7 +43,7 @@ class EnrichmentAnalysis:
 
             pathway_compounds = list(pathway_info["compounds"].values())
 
-            in_pathway = [x for x in self.compound_list if x in chain(*pathway_compounds)]
+            in_pathway = self._check_if_in_pathway(pathway_info["compounds"])
 
             p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
 
@@ -52,12 +65,21 @@ class EnrichmentAnalysis:
 if __name__ == "__main__":
 
     compound_list = [
-        "GPRLSGONYQIRFK-FTGQXOHASA-N",
-        "IVOMOUWHDPKRLL-KQYNXXCUSA-N",
-        "ITGRMIJUDWFPJB-YYHNHJMXSA-N",
-        "MMWCIQZXVOZEGG-XJTPDSDZSA-N"
+        'YFPCPZJYSKOLNK-NSCWJZNLSA-N',
+        'ACTIUHUUMQJHFO-UPTCCGCDSA-N',
+        'UUGXJSBPSRROMU-WJNLUYJISA-N',
+        'SOECUQMRSRVZQQ-UHFFFAOYSA-N',
+        'UIXPTCZPFCVOQF-UHFFFAOYSA-N',
+        'NYFAQDMDAFCWPU-UVCHAVPFSA-N',
+        'GXNFPEOUKFOTKY-LPHQIWJTSA-N',
+        'DBESHHFMIFSNRV-RJYQSXAYSA-N',
+        'SQQWBSBBCSFQGC-JLHYYAGUSA-N',
+        'ICFIZJQGJAJRSU-SGHXUWJISA-N'
     ]
 
     ea = EnrichmentAnalysis(compound_list, organism="hsa")
 
-    print(ea.run_analysis(pvalue_cutoff=0.05))
+    results = ea.run_analysis(pvalue_cutoff=0.05)
+
+    print(results)
+
