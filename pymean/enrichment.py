@@ -1,5 +1,5 @@
 from statsmodels.stats.multitest import multipletests
-from scipy.stats import binom_test
+from scipy.stats import hypergeom
 import pandas as pd
 import os
 from .utils import get_data
@@ -35,7 +35,7 @@ class EnrichmentAnalysis:
         return len(in_pathway) / len(pathway_compounds)
 
 
-    def run_analysis(self, pvalue_cutoff: float=0.05, alternative: str="two-sided", adj_method: str="bonferroni", limiter: int= 0) -> pd.DataFrame:
+    def run_analysis(self, pvalue_cutoff: float=0.05, adj_method: str="bonferroni", limiter: int= 0) -> pd.DataFrame:
 
         results = []
 
@@ -56,12 +56,10 @@ class EnrichmentAnalysis:
 
                 if len(in_pathway) != 0:
 
-                    p_value = binom_test(len(in_pathway), len(pathway_compounds), 1/population, alternative)
+                    p_value = hypergeom.sf(len(in_pathway), population, len(pathway_compounds), len(self.compound_list))
 
                     in_pathway_str = self._generate_in_pathway_string(in_pathway)
-
                     importance = self._calculate_importance(in_pathway, pathway_compounds)
-
                     results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, importance, in_pathway_str])
 
         results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Importance","Identifiers"])
