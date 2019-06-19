@@ -1,5 +1,5 @@
 from statsmodels.stats.multitest import multipletests
-from scipy.stats import hypergeom
+from scipy.stats import hypergeom, fisher_exact
 import pandas as pd
 import os
 from .utils import get_data
@@ -30,12 +30,12 @@ class EnrichmentAnalysis:
     def _generate_in_pathway_string(self, in_pathway: dict) -> str:
         return "\t".join([" -> ".join([x, ";".join(in_pathway[x])]) for x in in_pathway])
 
-    def _calculate_importance(self, in_pathway: dict, pathway_compounds: dict) -> float:
+    def _calculate_importance(self, in_pathway: int, pathway_compounds: int) -> float:
 
-        return len(in_pathway) / len(pathway_compounds)
+        return in_pathway / pathway_compounds
 
 
-    def run_analysis(self, pvalue_cutoff: float=0.05, adj_method: str="bonferroni", limiter: int= 0) -> pd.DataFrame:
+    def run_analysis(self, pvalue_cutoff: float=0.05, method: str="hypergeometric", adj_method: str="holm", limiter: int= 0) -> pd.DataFrame:
 
         results = []
 
@@ -45,22 +45,30 @@ class EnrichmentAnalysis:
         for pathway in self.pathway_data["pathways"]:
 
             pathway_info = self.pathway_data["pathways"][pathway]
-
             pathway_name = pathway_info["name"]
-
             pathway_compounds = list(pathway_info["compounds"].values())
 
+            pc_l = len(pathway_compounds)
 
-            if len(pathway_compounds) >= limiter:
+            if pc_l >= limiter:
                 in_pathway = self._check_if_in_pathway(pathway_info["compounds"])
 
-                if len(in_pathway) != 0:
+                ipatway_l = len(in_pathway)
 
-                    p_value = hypergeom.sf(len(in_pathway), population, len(pathway_compounds), len(self.compound_list))
+
+                if ipatway_l != 0:
+
+                    if method == "hypergeometric":
+                        p_value = hypergeom.sf(ipatway_l, population, pc_l, len(self.compound_list))
+
+                    else:
+                        # Revert to fisher's exact test.
+                        # TODO: Do this.
+                        raise NotImplementedError("Only Hypergeometric Test Implemented")
 
                     in_pathway_str = self._generate_in_pathway_string(in_pathway)
-                    importance = self._calculate_importance(in_pathway, pathway_compounds)
-                    results.append([pathway, pathway_name, "(%i / %i)" % (len(in_pathway), len(pathway_compounds)), p_value, importance, in_pathway_str])
+                    importance = self._calculate_importance(ipatway_l, pc_l)
+                    results.append([pathway, pathway_name, "(%i / %i)" % (ipatway_l, pc_l), p_value, importance, in_pathway_str])
 
         results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Importance","Identifiers"])
 
