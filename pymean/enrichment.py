@@ -35,6 +35,7 @@ class EnrichmentAnalysis:
         return in_pathway / pathway_compounds
 
 
+    @profile
     def run_analysis(self, pvalue_cutoff: float=0.05, method: str="hypergeometric", adj_method: str="holm", limiter: int= 0) -> pd.DataFrame:
 
         results = []
@@ -84,4 +85,3 @@ class EnrichmentAnalysis:
         results.sort_values(adj_method_str, inplace=True)
 
         return results
-
