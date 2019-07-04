@@ -55,7 +55,6 @@ resuklts = ea.results
 If you'd like to plot out your results, take inspiration from the following method:
 
 ```python
-
 def plot_enrichment_analysis_results(results: pd.DataFrame, adj_method:str):
     fold_enrichment = np.abs(np.log(results["%s adj. p-value" % (adj_method)]))
     plt.figure()
