@@ -44,8 +44,11 @@ compound_list = [
 # Create an EnrichmentAnalysis object for the analysis of hsa
 ea = EnrichmentAnalysis(compound_list, organism="hsa")
 
-# Obtain results
-results = ea.run_analysis(pvalue_cutoff=0.005)
+# Run the analysis
+ea.run_analysis(pvalue_cutoff=0.05)
+
+# Obtain results (in the format of a pandas dataframe)
+resuklts = ea.results
 
 ```
 

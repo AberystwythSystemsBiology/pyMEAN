@@ -1,12 +1,19 @@
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import hypergeom, fisher_exact
+import numpy as np
 import pandas as pd
 import os
 from .utils import get_data
 from itertools import chain
 
+
 class EnrichmentAnalysis:
-    def __init__(self, compound_list, database: str ="kegg", organism: str="hsa"):
+    def __init__(
+        self,
+        compound_list,
+        database: str ="kegg",
+        organism: str="hsa"
+    ):
         self.compound_list = compound_list
         self.database = database
         self.organism = organism
@@ -15,73 +22,107 @@ class EnrichmentAnalysis:
     def _load_data(self) -> dict:
         return get_data(self.database, self.organism)
 
+    def _check_if_in_pathway(self, pth_cpds: list) -> dict:
+        
+        found = {k: [] for k, _ in enumerate(pth_cpds)}
 
-    def _check_if_in_pathway(self, pathway_compounds: dict) -> dict:
-        queried_dict = { k : [] for k in pathway_compounds.keys()}
+        for index, cpd_inchi in enumerate(pth_cpds):
+            for inchi in self.compound_list:
+                if inchi in cpd_inchi:
+                    found[index].append(inchi)
 
-        for inchi in self.compound_list:
-            for compound, inchis in pathway_compounds.items():
-                if inchi in inchis:
-                    queried_dict[compound].append(inchi)
+        return {k: v for (k, v) in found.items() if len(v) != 0}
 
-        return {k: v for k,v in queried_dict.items() if v != []}
+    def _generate_string(self, pathway_hits: dict, dbids: list) -> str:
+        return "\t".join(
+            [" -> ".join(
+                [dbids[x], ";".join(pathway_hits[x])]
+                ) for x in pathway_hits])
 
-
-    def _generate_in_pathway_string(self, in_pathway: dict) -> str:
-        return "\t".join([" -> ".join([x, ";".join(in_pathway[x])]) for x in in_pathway])
-
-    def _calculate_importance(self, in_pathway: int, pathway_compounds: int) -> float:
-
-        return in_pathway / pathway_compounds
-
-
-    @profile
-    def run_analysis(self, pvalue_cutoff: float=0.05, method: str="hypergeometric", adj_method: str="holm", limiter: int= 0) -> pd.DataFrame:
+    def _calc_cov(self, in_pathway: int, pth_cpds: int) -> float:
+        try:
+            return in_pathway / pth_cpds
+        except ZeroDivisionError:
+            return 0.0
+    
+    def run_analysis(
+        self,
+        pvalue_cutoff: float=0.05,
+        method: str="hyperg",
+        limiter: int= 0
+    ) -> pd.DataFrame:
 
         results = []
 
         population = self.pathway_data["population"]
 
-
+        num_cpds = len(self.compound_list)
+        
         for pathway in self.pathway_data["pathways"]:
 
-            pathway_info = self.pathway_data["pathways"][pathway]
-            pathway_name = pathway_info["name"]
-            pathway_compounds = list(pathway_info["compounds"].values())
+            pth_info = self.pathway_data["pathways"][pathway]
+            pth_name = pth_info["name"]
 
-            pc_l = len(pathway_compounds)
+            dbids = list(pth_info["compounds"].keys())
+            pth_cpds = [pth_info["compounds"][x] for x in dbids]
 
-            if pc_l >= limiter:
-                in_pathway = self._check_if_in_pathway(pathway_info["compounds"])
+            num_dbids = len(dbids)
 
-                ipatway_l = len(in_pathway)
+            if num_dbids >= limiter:
+                pathway_hits = self._check_if_in_pathway(pth_cpds)
+                num_hits = len(pathway_hits)
 
+                if method == "hyperg":
+                    p_value = 1-hypergeom.cdf(
+                        num_hits-1,
+                        population-num_dbids,
+                        num_cpds,
+                        num_dbids)
+                else:
+                    _, p_value = fisher_exact(
+                        [
+                            [
+                                num_hits,
+                                num_cpds-num_hits
+                            ],
+                            [
+                                num_dbids-num_hits,
+                                ((population-num_dbids)-num_cpds)+num_hits
+                            ]
+                        ]
+                    )
 
-                if ipatway_l != 0:
+                in_pathway_str = self._generate_string(pathway_hits, dbids)
+                importance = self._calc_cov(num_hits, num_dbids)
+                results.append([
+                    pathway,
+                    pth_name,
+                    num_hits,
+                    num_dbids,
+                    p_value,
+                    importance,
+                    in_pathway_str
+                    ])
 
-                    if method == "hypergeometric":
-                        p_value = hypergeom.sf(ipatway_l, population, pc_l, len(self.compound_list))
+        results = pd.DataFrame(
+            results,
+            columns=[
+                "Pathway ID",
+                "Pathway Name",
+                "Hits",
+                "Pathway Compounds",
+                "p",
+                "Coverage",
+                "Identifiers"
+                ])
 
-                    else:
-                        # Revert to fisher's exact test.
-                        # TODO: Do this.
-                        raise NotImplementedError("Only Hypergeometric Test Implemented")
-
-                    in_pathway_str = self._generate_in_pathway_string(in_pathway)
-                    importance = self._calculate_importance(ipatway_l, pc_l)
-                    results.append([pathway, pathway_name, "(%i / %i)" % (ipatway_l, pc_l), p_value, importance, in_pathway_str])
-
-        results = pd.DataFrame(results, columns=["Pathway ID", "Pathway Name", "Count", "p-value", "Importance","Identifiers"])
-
-        reject, cor_p_values, _, _ = multipletests(results["p-value"].values, method=adj_method)
-
-        adj_method_str = "%s adj. p-value" % (adj_method)
-
-        results.insert(4, adj_method_str, cor_p_values)
         results.set_index("Pathway ID", inplace=True)
 
-        results = results[results[adj_method_str] < pvalue_cutoff]
+        _, holm_p, _, _ = multipletests(results["p"].values, method="holm")
+        results.insert(4, "Holm p",  holm_p)
 
-        results.sort_values(adj_method_str, inplace=True)
+        results = results[results["Holm p"] <= pvalue_cutoff]
 
-        return results
+        results.sort_values("p", inplace=True)
+
+        self.results = results
